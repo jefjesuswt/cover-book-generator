@@ -17,7 +17,7 @@ func drawText(dc *gg.Context, title, author string, bgColor Oklch) error {
 	margin := 80.0
 	maxWidth := float64(width) - margin*2
 
-	fontSize := 280.0
+	fontSize := 250.0
 
 	if err := dc.LoadFontFace(fontPath, fontSize); err != nil {
 		return err
