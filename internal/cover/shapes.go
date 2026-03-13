@@ -4,84 +4,107 @@ import (
 	"math"
 	"math/rand"
 
-	"github.com/fogleman/gg"
+	"github.com/tdewolff/canvas"
 )
 
-func drawDistributedForms(dc *gg.Context, formType int) {
+func drawDistributedForms(ctx *canvas.Context, formType int) {
 	margin := 80.0
-	gridSize := 5
-	cellW := (float64(width) - margin*2) / float64(gridSize)
-	cellH := (float64(height) - margin*2) / float64(gridSize*3)
+	gridCols := 5
+	gridRows := 15
+	cellW := (width - margin*2) / float64(gridCols)
+	cellH := (height - margin*2) / float64(gridRows)
+
+	type cell struct {
+		x, y int
+	}
+	var cells []cell
+
+	for r := range gridRows {
+		for c := range gridCols {
+			cells = append(cells, cell{c, r})
+		}
+	}
+
+	// Mezclar las celdas para una distribución uniforme pero aleatoria
+	rand.Shuffle(len(cells), func(i, j int) {
+		cells[i], cells[j] = cells[j], cells[i]
+	})
 
 	numForms := 15 + rand.Intn(10)
+	if numForms > len(cells) {
+		numForms = len(cells)
+	}
 
-	dc.SetColor(oklchToRGB(formColor))
+	ctx.SetFillColor(oklchToRGB(formColor))
 
 	for i := 0; i < numForms; i++ {
-		gridX := rand.Intn(gridSize)
-		gridY := rand.Intn(gridSize * 3)
+		c := cells[i]
+		baseX := margin + float64(c.x)*cellW + cellW/2
+		baseY := margin + float64(c.y)*cellH + cellH/2
 
-		baseX := margin + float64(gridX)*cellW + cellW/2
-		baseY := margin + float64(gridY)*cellH + cellH/2
-
-		jitterX := (rand.Float64() - 0.5) * cellW * 0.8
-		jitterY := (rand.Float64() - 0.5) * cellH * 0.8
+		jitterX := (rand.Float64() - 0.5) * cellW * 0.7
+		jitterY := (rand.Float64() - 0.5) * cellH * 0.7
 
 		x := baseX + jitterX
 		y := baseY + jitterY
 
-		size := 150 + rand.Float64()*200
+		size := 100 + rand.Float64()*150
 		radius := size / 2
 
-		drawFormAt(dc, formType, x, y, radius)
+		drawFormAt(ctx, formType, x, y, radius)
 	}
 }
 
-func drawFormAt(dc *gg.Context, formType int, x, y, size float64) {
+func drawFormAt(ctx *canvas.Context, formType int, x, y, size float64) {
 	margin := 60.0
-	maxW := float64(width) - margin
-	maxH := float64(height) - margin
+	maxW := width - margin
+	maxH := height - margin
+
+	// Ajustar Y para canvas (Y-up)
+	canvasY := height - y
 
 	switch formType {
-	case 0:
+	case 0: // Círculo
 		if x-size < margin || x+size > maxW || y-size < margin || y+size > maxH {
 			return
 		}
-		dc.DrawCircle(x, y, size)
-		dc.Fill()
-	case 1:
+		ctx.DrawPath(x, canvasY, canvas.Circle(size))
+	case 1: // Cuadrado rotado
 		if x-size < margin || x+size > maxW || y-size < margin || y+size > maxH {
 			return
 		}
-		dc.Push()
-		dc.RotateAbout(rand.Float64()*2*math.Pi, x, y)
-		dc.DrawRectangle(x-size, y-size, size*2, size*2)
-		dc.Fill()
-		dc.Pop()
-	case 2:
+		p := canvas.Rectangle(size*2, size*2)
+		p = p.Transform(canvas.Identity.Rotate(rand.Float64() * 360).Translate(-size, -size))
+		ctx.DrawPath(x, canvasY, p)
+	case 2: // Triángulo
 		h := size * math.Sqrt(3)
 		if x-h < margin || x+h > maxW || y-h < margin || y+h > maxH {
 			return
 		}
-		dc.Push()
-		dc.RotateAbout(rand.Float64()*2*math.Pi, x, y)
-		dc.MoveTo(x, y-h)
-		dc.LineTo(x-h, y+h)
-		dc.LineTo(x+h, y+h)
-		dc.ClosePath()
-		dc.Fill()
-		dc.Pop()
-	case 3:
-		dc.SetLineWidth(8 + rand.Float64()*20)
+		p := &canvas.Path{}
+		p.MoveTo(0, h)
+		p.LineTo(-h, -h)
+		p.LineTo(h, -h)
+		p.Close()
+		p = p.Transform(canvas.Identity.Rotate(rand.Float64() * 360))
+		ctx.DrawPath(x, canvasY, p)
+	case 3: // Línea
+		ctx.SetStrokeWidth(8 + rand.Float64()*10) // Reduciendo un poco el ancho comparado con gg
+		ctx.SetStrokeColor(oklchToRGB(formColor))
+		
 		x2 := x + (rand.Float64()-0.5)*size*3
 		y2 := y + (rand.Float64()-0.5)*size*3
+		
 		if x < margin || x > maxW || y < margin || y > maxH ||
 			x2 < margin || x2 > maxW || y2 < margin || y2 > maxH {
 			return
 		}
-		dc.DrawLine(x, y, x2, y2)
-		dc.Stroke()
-	case 4:
+		
+		p := &canvas.Path{}
+		p.MoveTo(x, canvasY)
+		p.LineTo(x2, height-y2)
+		ctx.DrawPath(0, 0, p)
+	case 4: // Multi-puntos
 		numPuntos := 2 + rand.Intn(5)
 		for i := 0; i < numPuntos; i++ {
 			px := x + (rand.Float64()-0.5)*size*2
@@ -90,22 +113,7 @@ func drawFormAt(dc *gg.Context, formType int, x, y, size float64) {
 			if px-pr < margin || px+pr > maxW || py-pr < margin || py+pr > maxH {
 				continue
 			}
-			dc.DrawCircle(px, py, pr)
-			dc.Fill()
+			ctx.DrawPath(px, height-py, canvas.Circle(pr))
 		}
 	}
-}
-
-func drawRandomForm(dc *gg.Context, formType int) {
-	margin := 80.0
-	minPos := margin
-	maxPosW := float64(width) - margin
-	maxPosH := float64(height) - margin
-
-	x := minPos + rand.Float64()*(maxPosW-minPos)
-	y := minPos + rand.Float64()*(maxPosH-minPos)
-
-	size := 150 + rand.Float64()*200
-
-	drawFormAt(dc, formType, x, y, size/2)
 }
