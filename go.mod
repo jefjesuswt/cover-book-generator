@@ -2,7 +2,10 @@ module github.com/jefjesuswt/cover-book-generator
 
 go 1.25.0
 
-require github.com/tdewolff/canvas v0.0.0-20260307092048-5da4636eb131
+require (
+	github.com/tdewolff/canvas v0.0.0-20260307092048-5da4636eb131
+	golang.org/x/image v0.36.0
+)
 
 require (
 	codeberg.org/go-latex/latex v0.2.0 // indirect
@@ -19,6 +22,7 @@ require (
 	github.com/go-fonts/latin-modern v0.3.3 // indirect
 	github.com/go-text/typesetting v0.3.0 // indirect
 	github.com/golang/freetype v0.0.0-20170609003504-e2365dfdc4a0 // indirect
+	github.com/joho/godotenv v1.5.1 // indirect
 	github.com/kolesa-team/go-webp v1.0.5 // indirect
 	github.com/srwiley/rasterx v0.0.0-20220730225603-2ab79fcdd4ef // indirect
 	github.com/srwiley/scanx v0.0.0-20190309010443-e94503791388 // indirect
@@ -27,7 +31,6 @@ require (
 	github.com/tdewolff/parse/v2 v2.8.5 // indirect
 	github.com/wcharczuk/go-chart/v2 v2.1.2 // indirect
 	github.com/yuin/goldmark v1.7.13 // indirect
-	golang.org/x/image v0.36.0 // indirect
 	golang.org/x/net v0.46.0 // indirect
 	golang.org/x/text v0.34.0 // indirect
 	gonum.org/v1/plot v0.16.0 // indirect

@@ -1,6 +1,7 @@
 package cover
 
 import (
+	"image"
 	"image/color"
 	"math"
 	"math/rand"
@@ -133,4 +134,80 @@ func getFormColor() Oklch {
 
 func getBgColors() []Oklch {
 	return bgColors
+}
+
+// extractedColors holds dominant colors pulled from an image.
+type extractedColors struct {
+	overlay   color.RGBA // tint for semi-transparent overlay
+	text      color.RGBA // high-contrast text color
+	textMuted color.RGBA // author/subtitle color
+}
+
+// extractColors samples an image, finds dominant colors, and picks
+// overlay tint + text colors that guarantee readability.
+func extractColors(img image.Image) extractedColors {
+	hist := map[uint32]int{}
+	bounds := img.Bounds()
+	step := 8 // sample every 8th pixel
+	for y := bounds.Min.Y; y < bounds.Max.Y; y += step {
+		for x := bounds.Min.X; x < bounds.Max.X; x += step {
+			r, g, b, _ := img.At(x, y).RGBA()
+			// quantize to 4 bits per channel
+			key := uint32(r>>12)<<8 | uint32(g>>12)<<4 | uint32(b>>12)
+			hist[key]++
+		}
+	}
+
+	// find darkest and lightest dominant buckets
+	var darkest, lightest uint32
+	darkestCount, lightestCount := 0, 0
+	for key, count := range hist {
+		r := byte((key >> 8) & 0xF)
+		g := byte((key >> 4) & 0xF)
+		b := byte(key & 0xF)
+		lum := 0.299*float64(r) + 0.587*float64(g) + 0.114*float64(b)
+		if lum < 6 && count > darkestCount {
+			darkest = key
+			darkestCount = count
+		}
+		if lum > 9 && count > lightestCount {
+			lightest = key
+			lightestCount = count
+		}
+	}
+
+	// fallbacks if no clear dominant
+	if darkestCount == 0 {
+		darkest = 0x000
+	}
+	if lightestCount == 0 {
+		lightest = 0xFFF
+	}
+
+	// expand 4-bit to 8-bit
+	expand := func(v byte) byte { return v*17 + v }
+	dR, dG, dB := expand(byte((darkest>>8)&0xF)), expand(byte((darkest>>4)&0xF)), expand(byte(darkest&0xF))
+	lR, lG, lB := expand(byte((lightest>>8)&0xF)), expand(byte((lightest>>4)&0xF)), expand(byte(lightest&0xF))
+
+	// overlay = darkest dominant; text = lightest dominant
+	// if darkest is not actually dark, force a dark overlay
+	overlayLum := 0.299*float64(dR) + 0.587*float64(dG) + 0.114*float64(dB)
+	if overlayLum > 80 {
+		dR, dG, dB = 20, 20, 30
+	}
+
+	overlay := color.RGBA{dR, dG, dB, 255}
+
+	// text: use lightest dominant if it's light enough, else pure white
+	textLum := 0.299*float64(lR) + 0.587*float64(lG) + 0.114*float64(lB)
+	var text, textMuted color.RGBA
+	if textLum > 150 {
+		text = color.RGBA{lR, lG, lB, 255}
+		textMuted = color.RGBA{lR, lG, lB, 200}
+	} else {
+		text = color.RGBA{245, 245, 250, 255}
+		textMuted = color.RGBA{200, 200, 210, 230}
+	}
+
+	return extractedColors{overlay: overlay, text: text, textMuted: textMuted}
 }

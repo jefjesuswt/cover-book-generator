@@ -4,11 +4,15 @@ import (
 	"flag"
 	"fmt"
 	"log"
+	"os"
 
 	"github.com/jefjesuswt/cover-book-generator/internal/cover"
+	"github.com/joho/godotenv"
 )
 
 func main() {
+	_ = godotenv.Load() // ponytail: .env optional, ignore error if missing
+
 	var title, author, output string
 	flag.StringVar(&title, "title", "", "Título del libro")
 	flag.StringVar(&author, "author", "", "author del libro")
@@ -19,7 +23,9 @@ func main() {
 		log.Fatal("Debes proporcionar título y author")
 	}
 
-	err := cover.Generate(title, author, output)
+	apiKey := os.Getenv("UNSPLASH_ACCESS_KEY")
+
+	err := cover.Generate(title, author, output, apiKey)
 	if err != nil {
 		log.Fatal(err)
 	}
